@@ -18,6 +18,21 @@ Open http://localhost:5173
 
 All routes are protected. Copy `.env.example` to `.env.local` and set `VITE_API_BASE_URL` for your backend.
 
+## CI/CD
+
+GitHub Actions runs on every push and pull request to `master`:
+
+- **CI** — `npm ci`, `npm run lint`, `npm run build`
+- **CD** — Vercel auto-deploys from `master`; the workflow then smoke-checks production
+
+Workflow file: `.github/workflows/ci-cd.yml`
+
+Run the same checks locally:
+
+```bash
+npm test
+```
+
 ## Vercel
 
 Production deploys run from the `master` branch when connected to GitHub.

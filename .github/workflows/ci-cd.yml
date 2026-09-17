@@ -1,0 +1,75 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+concurrency:
+  group: ci-cd-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  VITE_API_BASE_URL: https://hrms.nsegindia.com
+  VITE_USE_PROXY: true
+  VITE_ORGANIZATION_ID: 1
+
+jobs:
+  build:
+    name: Lint and build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist
+          retention-days: 7
+
+  verify-production:
+    name: Verify production deploy
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for Vercel deployment
+        run: sleep 90
+
+      - name: Smoke check login page
+        run: |
+          url="https://people-app-alphatrucking.vercel.app/login"
+          status="$(curl -sS -o /dev/null -w '%{http_code}' -L "$url")"
+          echo "Production login page returned HTTP $status"
+          if [ "$status" != "200" ] && [ "$status" != "302" ]; then
+            echo "Expected HTTP 200 or 302 from $url"
+            exit 1
+          fi
+
+      - name: Smoke check backend proxy route
+        run: |
+          url="https://people-app-alphatrucking.vercel.app/backend/api/login"
+          status="$(curl -sS -o /dev/null -w '%{http_code}' -X POST "$url" -H 'Content-Type: application/json' -d '{}')"
+          echo "Backend proxy returned HTTP $status"
+          if [ "$status" = "404" ] || [ "$status" = "502" ] || [ "$status" = "503" ]; then
+            echo "Backend proxy appears unavailable (HTTP $status)"
+            exit 1
+          fi
