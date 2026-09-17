@@ -44,6 +44,20 @@ export async function hydrateSession(seed) {
     clearAuthStorage()
     throw error
   }
+
+  if (!profile || typeof profile !== 'object') {
+    clearAuthStorage()
+    throw new Error('Sign-in failed. Token is not valid.')
+  }
+
+  if (seed.email) {
+    const expected = seed.email.trim().toLowerCase()
+    const actual = String(profile.workEmail || profile.email || '').trim().toLowerCase()
+    if (actual && expected && actual !== expected) {
+      clearAuthStorage()
+      throw new Error('Sign-in failed. Credentials do not match this account.')
+    }
+  }
   const resolvedUserId = (
     seed.userId
     || profile.userId

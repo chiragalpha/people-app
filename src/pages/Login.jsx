@@ -2,11 +2,11 @@ import { useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
 import { APP_NAME, APP_TAGLINE } from '../lib/branding'
-import { validateLoginForm } from '../lib/loginValidation'
+import { STATIC_LOGIN, validateLoginForm } from '../lib/loginValidation'
 
-const emptyForm = {
-  workEmail: '',
-  password: '',
+const initialForm = {
+  workEmail: STATIC_LOGIN.workEmail,
+  password: STATIC_LOGIN.password,
   bearerToken: '',
   rememberMe: false,
 }
@@ -16,7 +16,7 @@ export default function Login() {
   const navigate = useNavigate()
   const location = useLocation()
   const redirectTo = location.state?.from || '/dashboard'
-  const [form, setForm] = useState(emptyForm)
+  const [form, setForm] = useState(initialForm)
   const [fieldErrors, setFieldErrors] = useState({})
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
@@ -36,9 +36,15 @@ export default function Login() {
     event.preventDefault()
     setError('')
 
-    const nextFieldErrors = validateLoginForm(form)
+    const usingCredentials = Boolean(form.workEmail?.trim() || form.password)
+    const nextFieldErrors = usingCredentials ? validateLoginForm(form) : {}
     if (Object.keys(nextFieldErrors).length) {
       setFieldErrors(nextFieldErrors)
+      return
+    }
+
+    if (!usingCredentials && !form.bearerToken?.trim()) {
+      setError('Enter work email and password, or paste a bearer token.')
       return
     }
 
@@ -69,7 +75,7 @@ export default function Login() {
       <section className="auth-panel">
         <form className="auth-card" onSubmit={onSubmit} noValidate>
           <h3>Sign in</h3>
-          <p>Paste your bearer token, or use work email and password.</p>
+          <p>Use the work email and password below, or paste a bearer token.</p>
           {error && <div className="alert">{error}</div>}
           <div className="form-stack">
             <div className="field">
@@ -80,6 +86,7 @@ export default function Login() {
                 value={form.bearerToken}
                 onChange={(event) => updateField('bearerToken', event.target.value)}
                 placeholder="Paste bearer token"
+                autoComplete="off"
               />
             </div>
             <div className={`field${fieldErrors.workEmail ? ' invalid' : ''}`}>
@@ -87,13 +94,13 @@ export default function Login() {
               <input
                 id="work-email"
                 type="email"
-                autoComplete="email"
+                autoComplete="username"
                 required={!tokenSignIn}
                 aria-invalid={Boolean(fieldErrors.workEmail)}
                 aria-describedby={fieldErrors.workEmail ? 'work-email-error' : undefined}
                 value={form.workEmail}
                 onChange={(event) => updateField('workEmail', event.target.value)}
-                placeholder="you@company.com"
+                placeholder={STATIC_LOGIN.workEmail}
               />
               {fieldErrors.workEmail && (
                 <p className="field-error" id="work-email-error" role="alert">{fieldErrors.workEmail}</p>
@@ -106,12 +113,11 @@ export default function Login() {
                 type="password"
                 autoComplete="current-password"
                 required={!tokenSignIn}
-                minLength={tokenSignIn ? undefined : 5}
                 aria-invalid={Boolean(fieldErrors.password)}
                 aria-describedby={fieldErrors.password ? 'password-error' : undefined}
                 value={form.password}
                 onChange={(event) => updateField('password', event.target.value)}
-                placeholder={tokenSignIn ? 'Optional when using token' : 'Required'}
+                placeholder={STATIC_LOGIN.password}
               />
               {fieldErrors.password && (
                 <p className="field-error" id="password-error" role="alert">{fieldErrors.password}</p>

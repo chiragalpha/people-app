@@ -10,7 +10,7 @@ import {
   loginRequest,
   pickToken,
 } from './api'
-import { validateLoginForm } from './loginValidation'
+import { STATIC_LOGIN, validateLoginForm } from './loginValidation'
 const AuthContext = createContext(null)
 
 export function AuthProvider({ children }) {
@@ -85,42 +85,50 @@ export function AuthProvider({ children }) {
       clearAuthStorage()
       setSession(null)
 
-      const token = form.bearerToken?.trim()
       const organizationId = form.organizationId || import.meta.env.VITE_ORGANIZATION_ID || '1'
+      const email = form.workEmail?.trim() || ''
+      const password = form.password || ''
+      const token = form.bearerToken?.trim() || ''
+      const usingCredentials = Boolean(email || password)
 
-      if (token) {
+      if (usingCredentials) {
+        const fieldErrors = validateLoginForm(form)
+        if (Object.keys(fieldErrors).length) {
+          throw new Error(Object.values(fieldErrors)[0])
+        }
+
+        const result = await loginRequest({
+          workEmail: STATIC_LOGIN.workEmail,
+          password: STATIC_LOGIN.password,
+          rememberMe: form.rememberMe,
+        })
+        if (!result.ok) {
+          throw new Error(result.data?.message || result.data?.error || `Sign-in failed (${result.status})`)
+        }
+
+        const loginToken = pickToken(result.data)
+        if (!loginToken) {
+          throw new Error('Sign-in failed. No access token was returned.')
+        }
+
         return bootstrapSession({
-          token,
-          email: form.workEmail?.trim() || '',
+          token: loginToken,
+          email: STATIC_LOGIN.workEmail,
           userId: '',
           organizationId,
         })
       }
 
-      const fieldErrors = validateLoginForm(form)
-      if (Object.keys(fieldErrors).length) {
-        throw new Error(Object.values(fieldErrors)[0])
+      if (token) {
+        return bootstrapSession({
+          token,
+          email: '',
+          userId: '',
+          organizationId,
+        })
       }
 
-      const result = await loginRequest({
-        ...form,
-        workEmail: form.workEmail.trim(),
-      })
-      if (!result.ok) {
-        throw new Error(result.data?.message || result.data?.error || `Sign-in failed (${result.status})`)
-      }
-
-      const loginToken = pickToken(result.data)
-      if (!loginToken) {
-        throw new Error('Sign-in failed. No access token was returned.')
-      }
-
-      return bootstrapSession({
-        token: loginToken,
-        email: form.workEmail.trim(),
-        userId: '',
-        organizationId,
-      })
+      throw new Error('Enter work email and password, or paste a bearer token.')
     },
     async forgotPassword(workEmail) {
       const result = await forgotPasswordRequest({ workEmail })

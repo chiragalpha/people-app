@@ -1,5 +1,5 @@
 import { envDefaults } from './collection'
-import { isFailureResponse } from './loginValidation'
+import { isFailureResponse, isHtmlResponse, isPlausibleAccessToken } from './loginValidation'
 import { loadSavedEnv } from './storage'
 
 export function currentEnv() {
@@ -26,6 +26,15 @@ function headers({ json = true, auth = true, bearerToken } = {}) {
 
 async function parseResponse(response) {
   const text = await response.text()
+  if (isHtmlResponse(text)) {
+    return {
+      data: {
+        status: 'failure',
+        message: 'Sign-in failed. API returned an invalid response.',
+      },
+      text,
+    }
+  }
   let data = {}
   try {
     data = text ? JSON.parse(text) : {}
@@ -116,15 +125,15 @@ export async function forgotPasswordRequest({ workEmail }) {
 }
 
 export function pickToken(data) {
-  return (
-    data?.token ||
-    data?.accessToken ||
-    data?.access_token ||
-    data?.data?.token ||
-    data?.data?.accessToken ||
-    data?.result?.token ||
-    ''
-  )
+  const candidates = [
+    data?.token,
+    data?.accessToken,
+    data?.access_token,
+    data?.data?.token,
+    data?.data?.accessToken,
+    data?.result?.token,
+  ]
+  return candidates.find((value) => isPlausibleAccessToken(value)) || ''
 }
 
 export function pickName(data, fallbackEmail) {
