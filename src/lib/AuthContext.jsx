@@ -10,6 +10,7 @@ import {
   loginRequest,
   pickToken,
 } from './api'
+import { validateLoginForm } from './loginValidation'
 const AuthContext = createContext(null)
 
 export function AuthProvider({ children }) {
@@ -93,11 +94,15 @@ export function AuthProvider({ children }) {
         })
       }
 
-      if (!form.workEmail?.trim() || !form.password) {
-        throw new Error('Enter work email and password, or paste a bearer token.')
+      const fieldErrors = validateLoginForm(form)
+      if (Object.keys(fieldErrors).length) {
+        throw new Error(Object.values(fieldErrors)[0])
       }
 
-      const result = await loginRequest(form)
+      const result = await loginRequest({
+        ...form,
+        workEmail: form.workEmail.trim(),
+      })
       if (!result.ok) {
         throw new Error(result.data?.message || result.data?.error || `Sign-in failed (${result.status})`)
       }
