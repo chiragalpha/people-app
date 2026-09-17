@@ -18,6 +18,16 @@ Open http://localhost:5173
 
 All routes are protected. Copy `.env.example` to `.env.local` and set `VITE_API_BASE_URL` for your backend.
 
+## Vercel
+
+Production deploys run from the `master` branch when connected to GitHub.
+
+Set this environment variable in the Vercel project:
+
+- `BACKEND_URL` — your API origin (example: `https://your-server.example.com`)
+
+Local dev still uses `.env.local` with `VITE_API_BASE_URL`.
+
 ## Pages
 
 - `/login` — sign in
