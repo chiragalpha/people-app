@@ -1,4 +1,5 @@
 import { envDefaults } from './collection'
+import { isFailureResponse } from './loginValidation'
 import { loadSavedEnv } from './storage'
 
 export function currentEnv() {
@@ -11,31 +12,37 @@ function apiUrl(path) {
   return `${settings.baseUrl}${path}`
 }
 
-function headers({ json = true, auth = true } = {}) {
+function headers({ json = true, auth = true, bearerToken } = {}) {
   const settings = currentEnv()
+  const token = bearerToken ?? (auth ? settings.bearerToken : '')
   const result = {
     Accept: 'application/json, text/plain, */*',
     OrganizationId: String(settings.organizationId || '1'),
   }
   if (json) result['Content-Type'] = 'application/json'
-  if (auth && settings.bearerToken) result.Authorization = `Bearer ${settings.bearerToken}`
+  if (token) result.Authorization = `Bearer ${token}`
   return result
 }
 
-export async function apiRequest(path, { method = 'GET', body, auth = true } = {}) {
-  const response = await fetch(apiUrl(path), {
-    method,
-    headers: headers({ json: body !== undefined, auth }),
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-  })
+async function parseResponse(response) {
   const text = await response.text()
   let data = {}
   try {
     data = text ? JSON.parse(text) : {}
   } catch {
-    data = { message: text }
+    data = { message: text, status: 'failure' }
   }
-  if (!response.ok) {
+  return { data, text }
+}
+
+export async function apiRequest(path, { method = 'GET', body, auth = true, bearerToken } = {}) {
+  const response = await fetch(apiUrl(path), {
+    method,
+    headers: headers({ json: body !== undefined, auth, bearerToken }),
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  })
+  const { data } = await parseResponse(response)
+  if (!response.ok || isFailureResponse(data, response.status)) {
     throw new Error(data.message || data.error || `Request failed (${response.status})`)
   }
   return data
@@ -65,14 +72,33 @@ export function asList(value) {
 
 export async function loginRequest({ workEmail, password, rememberMe }) {
   try {
-    const data = await apiRequest('/backend/api/login', {
+    const response = await fetch(apiUrl('/backend/api/login'), {
       method: 'POST',
-      auth: false,
-      body: { workEmail, password, rememberMe: !!rememberMe },
+      headers: headers({ json: true, auth: false }),
+      body: JSON.stringify({ workEmail, password, rememberMe: !!rememberMe }),
     })
-    return { ok: true, status: 200, data }
+    const { data } = await parseResponse(response)
+
+    if (!response.ok || isFailureResponse(data, response.status)) {
+      return {
+        ok: false,
+        status: response.status,
+        data: { message: data.message || data.error || `Sign-in failed (${response.status})` },
+      }
+    }
+
+    const token = pickToken(data)
+    if (!token) {
+      return {
+        ok: false,
+        status: response.status,
+        data: { message: 'Sign-in failed. No access token was returned.' },
+      }
+    }
+
+    return { ok: true, status: response.status, data }
   } catch (error) {
-    return { ok: false, status: 401, data: { message: error.message } }
+    return { ok: false, status: 0, data: { message: error.message || 'Sign-in failed.' } }
   }
 }
 

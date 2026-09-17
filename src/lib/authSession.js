@@ -1,7 +1,7 @@
 import { fetchAttendanceProfile, fetchUserDetails } from './api'
 import { envDefaults } from './collection'
 import { clearSession, loadSession, saveSession } from './session'
-import { loadSavedEnv, saveEnv } from './storage'
+import { saveEnv } from './storage'
 
 export function isValidStoredSession(value) {
   return Boolean(value && !value.preview && String(value.token || '').trim())
@@ -14,12 +14,7 @@ export function readStoredSession() {
 
 export function clearAuthStorage() {
   clearSession()
-  const saved = loadSavedEnv()
-  saveEnv({
-    ...envDefaults(),
-    ...saved,
-    bearerToken: '',
-  })
+  saveEnv(envDefaults())
 }
 
 export function isAuthError(error) {
@@ -33,23 +28,27 @@ export function isAuthError(error) {
 }
 
 export async function hydrateSession(seed) {
-  saveEnv({
+  const pendingEnv = {
     ...envDefaults(),
-    ...loadSavedEnv(),
     bearerToken: seed.token,
     organizationId: seed.organizationId || import.meta.env.VITE_ORGANIZATION_ID || '1',
     userId: String(seed.userId || ''),
     workEmail: seed.email || '',
-  })
-  saveSession(seed)
+  }
+  saveEnv(pendingEnv)
 
-  const profile = await fetchAttendanceProfile()
+  let profile
+  try {
+    profile = await fetchAttendanceProfile()
+  } catch (error) {
+    clearAuthStorage()
+    throw error
+  }
   const resolvedUserId = (
     seed.userId
     || profile.userId
     || profile.user_id
     || profile.id
-    || import.meta.env.VITE_USER_ID
     || ''
   )
 
@@ -75,11 +74,10 @@ export async function hydrateSession(seed) {
 
   saveSession(next)
   saveEnv({
-    ...envDefaults(),
-    ...loadSavedEnv(),
+    ...pendingEnv,
     bearerToken: seed.token,
-    userId: String(next.userId),
-    workEmail: next.email,
+    userId: String(next.userId || ''),
+    workEmail: next.email || seed.email || '',
   })
 
   return next

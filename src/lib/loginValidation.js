@@ -21,3 +21,11 @@ export function validateLoginForm({ workEmail, password, bearerToken }) {
 
   return errors
 }
+
+export function isFailureResponse(data, httpStatus) {
+  if (httpStatus >= 400) return true
+  if (!data || typeof data !== 'object') return false
+  if (data.status === 'failure' || data.status === 'error') return true
+  if (typeof data.code === 'number' && data.code >= 400) return true
+  return false
+}

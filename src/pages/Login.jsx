@@ -93,7 +93,7 @@ export default function Login() {
                 aria-describedby={fieldErrors.workEmail ? 'work-email-error' : undefined}
                 value={form.workEmail}
                 onChange={(event) => updateField('workEmail', event.target.value)}
-                placeholder="user@example.invalid"
+                placeholder="you@company.com"
               />
               {fieldErrors.workEmail && (
                 <p className="field-error" id="work-email-error" role="alert">{fieldErrors.workEmail}</p>
@@ -111,7 +111,7 @@ export default function Login() {
                 aria-describedby={fieldErrors.password ? 'password-error' : undefined}
                 value={form.password}
                 onChange={(event) => updateField('password', event.target.value)}
-                placeholder={tokenSignIn ? 'Optional when using token' : 'dummy-password'}
+                placeholder={tokenSignIn ? 'Optional when using token' : 'Required'}
               />
               {fieldErrors.password && (
                 <p className="field-error" id="password-error" role="alert">{fieldErrors.password}</p>

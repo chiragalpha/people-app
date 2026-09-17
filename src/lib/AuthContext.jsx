@@ -54,7 +54,7 @@ export function AuthProvider({ children }) {
       preview: false,
       name: 'Loading…',
       email: email || '',
-      userId: userId || import.meta.env.VITE_USER_ID || '',
+      userId: userId || '',
       organizationId: organizationId || import.meta.env.VITE_ORGANIZATION_ID || '1',
       title: '',
       employeeId: '',
@@ -82,14 +82,17 @@ export function AuthProvider({ children }) {
     isAuthenticated: Boolean(session?.token),
     user: session || { name: 'Guest', email: '', preview: true },
     async login(form) {
+      clearAuthStorage()
+      setSession(null)
+
       const token = form.bearerToken?.trim()
       const organizationId = form.organizationId || import.meta.env.VITE_ORGANIZATION_ID || '1'
 
       if (token) {
         return bootstrapSession({
           token,
-          email: form.workEmail,
-          userId: import.meta.env.VITE_USER_ID || '',
+          email: form.workEmail?.trim() || '',
+          userId: '',
           organizationId,
         })
       }
@@ -109,13 +112,13 @@ export function AuthProvider({ children }) {
 
       const loginToken = pickToken(result.data)
       if (!loginToken) {
-        throw new Error('Sign-in succeeded but no token was returned. Paste a bearer token instead.')
+        throw new Error('Sign-in failed. No access token was returned.')
       }
 
       return bootstrapSession({
         token: loginToken,
-        email: form.workEmail,
-        userId: import.meta.env.VITE_USER_ID || '',
+        email: form.workEmail.trim(),
+        userId: '',
         organizationId,
       })
     },
