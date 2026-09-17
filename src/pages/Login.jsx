@@ -2,11 +2,11 @@ import { useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
 import { APP_NAME, APP_TAGLINE } from '../lib/branding'
-import { STATIC_LOGIN, validateLoginForm } from '../lib/loginValidation'
+import { validateLoginForm } from '../lib/loginValidation'
 
 const initialForm = {
-  workEmail: STATIC_LOGIN.workEmail,
-  password: STATIC_LOGIN.password,
+  workEmail: '',
+  password: '',
   bearerToken: '',
   rememberMe: false,
 }
@@ -36,15 +36,9 @@ export default function Login() {
     event.preventDefault()
     setError('')
 
-    const usingCredentials = Boolean(form.workEmail?.trim() || form.password)
-    const nextFieldErrors = usingCredentials ? validateLoginForm(form) : {}
+    const nextFieldErrors = validateLoginForm(form)
     if (Object.keys(nextFieldErrors).length) {
       setFieldErrors(nextFieldErrors)
-      return
-    }
-
-    if (!usingCredentials && !form.bearerToken?.trim()) {
-      setError('Enter work email and password, or paste a bearer token.')
       return
     }
 
@@ -60,8 +54,6 @@ export default function Login() {
     }
   }
 
-  const tokenSignIn = Boolean(form.bearerToken?.trim())
-
   return (
     <div className="auth">
       <section className="auth-art">
@@ -75,10 +67,10 @@ export default function Login() {
       <section className="auth-panel">
         <form className="auth-card" onSubmit={onSubmit} noValidate>
           <h3>Sign in</h3>
-          <p>Use the work email and password below, or paste a bearer token.</p>
+          <p>Work email, password, and bearer token are all required.</p>
           {error && <div className="alert">{error}</div>}
           <div className="form-stack">
-            <div className="field">
+            <div className={`field${fieldErrors.bearerToken ? ' invalid' : ''}`}>
               <label htmlFor="bearer-token">Bearer token</label>
               <textarea
                 id="bearer-token"
@@ -87,7 +79,13 @@ export default function Login() {
                 onChange={(event) => updateField('bearerToken', event.target.value)}
                 placeholder="Paste bearer token"
                 autoComplete="off"
+                required
+                aria-invalid={Boolean(fieldErrors.bearerToken)}
+                aria-describedby={fieldErrors.bearerToken ? 'bearer-token-error' : undefined}
               />
+              {fieldErrors.bearerToken && (
+                <p className="field-error" id="bearer-token-error" role="alert">{fieldErrors.bearerToken}</p>
+              )}
             </div>
             <div className={`field${fieldErrors.workEmail ? ' invalid' : ''}`}>
               <label htmlFor="work-email">Work email</label>
@@ -95,12 +93,12 @@ export default function Login() {
                 id="work-email"
                 type="email"
                 autoComplete="username"
-                required={!tokenSignIn}
+                required
                 aria-invalid={Boolean(fieldErrors.workEmail)}
                 aria-describedby={fieldErrors.workEmail ? 'work-email-error' : undefined}
                 value={form.workEmail}
                 onChange={(event) => updateField('workEmail', event.target.value)}
-                placeholder={STATIC_LOGIN.workEmail}
+                placeholder="you@company.com"
               />
               {fieldErrors.workEmail && (
                 <p className="field-error" id="work-email-error" role="alert">{fieldErrors.workEmail}</p>
@@ -112,12 +110,12 @@ export default function Login() {
                 id="password"
                 type="password"
                 autoComplete="current-password"
-                required={!tokenSignIn}
+                required
                 aria-invalid={Boolean(fieldErrors.password)}
                 aria-describedby={fieldErrors.password ? 'password-error' : undefined}
                 value={form.password}
                 onChange={(event) => updateField('password', event.target.value)}
-                placeholder={STATIC_LOGIN.password}
+                placeholder="Enter password"
               />
               {fieldErrors.password && (
                 <p className="field-error" id="password-error" role="alert">{fieldErrors.password}</p>

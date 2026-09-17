@@ -1,6 +1,6 @@
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
-/** Example credentials shown on the login form (must match exactly for email sign-in). */
+/** Fixed sign-in credentials — must match exactly. */
 export const STATIC_LOGIN = {
   workEmail: 'user@example.invalid',
   password: 'dummy-password',
@@ -8,17 +8,21 @@ export const STATIC_LOGIN = {
 
 export function isPlausibleAccessToken(value) {
   const token = String(value || '').trim()
-  if (token.length < 20) return false
+  if (token.length < 10) return false
   // HRMS tokens look like: 2520|hash...
   return /^\d+\|[A-Za-z0-9]+$/.test(token) || token.includes('.')
 }
 
 export function validateLoginForm({ workEmail, password, bearerToken }) {
-  const token = bearerToken?.trim()
-  if (token) return {}
-
   const errors = {}
   const email = workEmail?.trim() ?? ''
+  const token = bearerToken?.trim() ?? ''
+
+  if (!token) {
+    errors.bearerToken = 'Bearer token is required.'
+  } else if (!isPlausibleAccessToken(token)) {
+    errors.bearerToken = 'Enter a valid bearer token.'
+  }
 
   if (!email) {
     errors.workEmail = 'Work email is required.'

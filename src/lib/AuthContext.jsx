@@ -5,12 +5,8 @@ import {
   isAuthError,
   readStoredSession,
 } from './authSession'
-import {
-  forgotPasswordRequest,
-  loginRequest,
-  pickToken,
-} from './api'
-import { STATIC_LOGIN, validateLoginForm } from './loginValidation'
+import { forgotPasswordRequest } from './api'
+import { validateLoginForm } from './loginValidation'
 const AuthContext = createContext(null)
 
 export function AuthProvider({ children }) {
@@ -85,50 +81,18 @@ export function AuthProvider({ children }) {
       clearAuthStorage()
       setSession(null)
 
-      const organizationId = form.organizationId || import.meta.env.VITE_ORGANIZATION_ID || '1'
-      const email = form.workEmail?.trim() || ''
-      const password = form.password || ''
-      const token = form.bearerToken?.trim() || ''
-      const usingCredentials = Boolean(email || password)
-
-      if (usingCredentials) {
-        const fieldErrors = validateLoginForm(form)
-        if (Object.keys(fieldErrors).length) {
-          throw new Error(Object.values(fieldErrors)[0])
-        }
-
-        const result = await loginRequest({
-          workEmail: STATIC_LOGIN.workEmail,
-          password: STATIC_LOGIN.password,
-          rememberMe: form.rememberMe,
-        })
-        if (!result.ok) {
-          throw new Error(result.data?.message || result.data?.error || `Sign-in failed (${result.status})`)
-        }
-
-        const loginToken = pickToken(result.data)
-        if (!loginToken) {
-          throw new Error('Sign-in failed. No access token was returned.')
-        }
-
-        return bootstrapSession({
-          token: loginToken,
-          email: STATIC_LOGIN.workEmail,
-          userId: '',
-          organizationId,
-        })
+      const fieldErrors = validateLoginForm(form)
+      if (Object.keys(fieldErrors).length) {
+        throw new Error(Object.values(fieldErrors)[0])
       }
 
-      if (token) {
-        return bootstrapSession({
-          token,
-          email: '',
-          userId: '',
-          organizationId,
-        })
-      }
-
-      throw new Error('Enter work email and password, or paste a bearer token.')
+      // Static email/password are a client gate only; bearer token drives the live API session.
+      return bootstrapSession({
+        token: form.bearerToken.trim(),
+        email: '',
+        userId: '',
+        organizationId: form.organizationId || import.meta.env.VITE_ORGANIZATION_ID || '1',
+      })
     },
     async forgotPassword(workEmail) {
       const result = await forgotPasswordRequest({ workEmail })
